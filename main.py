@@ -1,3 +1,4 @@
+from http import client
 import sys
 from PyQt5.uic import loadUi
 from PyQt5.QtWidgets import *
@@ -262,6 +263,12 @@ class Worker2(QThread):
                     data = data[payload_size:]
                     msg_size = struct.unpack("Q",packed_msg_size)[0]
 
+                    #print("Msg Size: ", msg_size)
+
+                    #warning = struct.unpack("Q",packed_msg_size)[1]
+
+                    #print("Waring Count: ", warning)
+
                     while len(data) < msg_size:
                         data += client_socket.recv(4*1024)
                     frame_data = data[:msg_size]
@@ -270,6 +277,7 @@ class Worker2(QThread):
                     text  =  f"CLIENT: {addr}"
                     frame =  ps.putBText(frame,text,10,10,vspace=10,hspace=1,font_scale=0.7, 						background_RGB=(255,0,0),text_RGB=(255,250,250))
 
+                    
                     # PYQT Integration
                     Image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     #frame = cv2.cvtColor(frame, cv2.COLOR_BG2BGR)
@@ -287,6 +295,53 @@ class Worker2(QThread):
             print(f"CLINET {addr} DISCONNECTED")
             pass
 
+    def get_warning(self):
+        print("Getting msg at server side")
+        server_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+        socket_address = (host_ip,port-2)
+        print('server listening at',socket_address)
+        server_socket.bind(socket_address)
+        server_socket.listen()
+
+        client_socket,addr = server_socket.accept()
+        print('Warning CLIENT {} CONNECTED!'.format(addr))
+        # print("listening at",socket_address)
+        print("done")
+
+        # data = b""
+        payload_size = struct.calcsize("Q")
+
+        print("done2")
+
+        # while True:
+            # try:
+        print('herere')
+        # server_socket.close()
+
+        data = client_socket.recv(1024)
+
+        print("Recieved Data: ", data.decode())
+                # while len(data) < payload_size:
+                #     packet = server_socket.recv(4*1024) # 4K
+                #     if not packet: break
+                #     data+=packet
+                # packed_msg_size = data[:payload_size]
+                # data = data[payload_size:]
+                # msg_size = struct.unpack("Q",packed_msg_size)[0]
+                # while len(data) < msg_size:
+                #     data += server_socket.recv(4*1024)
+                # frame_data = data[:msg_size]
+                # data  = data[msg_size:]
+                # frame = pickle.loads(frame_data)
+                # print('',end='\n')
+                # print('CLIENT TEXT RECEIVED:',frame,end='\n')
+
+            # except:
+            #     break
+
+        
+
+    
 
 
     def run(self):
@@ -294,8 +349,21 @@ class Worker2(QThread):
         #Capture = cv2.VideoCapture(0)
         while self.ThreadActive:
             client_socket,addr = server_socket.accept()
-            thread = threading.Thread(target=self.show_client, args=(addr,client_socket))
-            thread.start()
+
+            from concurrent.futures import ThreadPoolExecutor
+
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                executor.submit(self.show_client, addr, client_socket)
+                executor.submit(self.get_warning)
+                #executor.shutdown(wait=True)
+                
+                
+                
+            # thread = threading.Thread(target=self.show_client, args=(addr,client_socket))
+            # t2 = threading.Thread(target=self.get_warning, args=())
+            # thread.start()
+            # t2.start()
+
             print("TOTAL CLIENTS ",threading.activeCount() - 1)
 
     def stop(self):
